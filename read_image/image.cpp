@@ -1,4 +1,4 @@
-#include "image.h"
+﻿#include "image.h"
 #include <math.h>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -208,17 +208,70 @@ image CannyEdge(double* EdgeImage, int width, int height, double* angles)
 				}
 			}
 		}
+	for (int i = 0; i <width ; i++){
+		out.data[0 * width + i] = 0;
+		out.data[1 * width + i] = 0;
+		out.data[height - 1 * width + i] = 0;
+		out.data[height - 2 * width + i] = 0;
+	}
+	for (int i = 2; i < height; i++){
+		out.data[i * width + 0] = 0;
+		out.data[i * width + 1] = 0;
+		out.data[i * width - 1] = 0;
+		out.data[i * width - 2] = 0;
+	}
 
 	return out;
 }
+/*
+	d  =  x* cosθ + y * sinθ
+	(row indice=y) x*cosθ - (col indice=y) y*sinθ = d (perpendicular distance from line to origin) (Θ = angle the perpendicular makes with the x-axis)
+
+	Point in image space --> sinusoid segment in Hough space
+
+	1- initialize	HoughSpace[d][theta]=0;
+
+	2- for ( theta =min;  theta = max; theta++)
+		d= x cosθ - ysinθ
+		HoughSpace[d][theta]+=1;
+	3- Find the value(s) of (d, Θ) where H[d, Θ] is maximum
+
+	4- The detected line in the image is given by  d= x cosθ + ysinθ
+	x cosθ = y sin
+*/
 int* HoughLine(image BinaryEdgeImage, int Width, int Height, double* angles, int& HoughWidth, int& HoughHeight) {
-	int* Hough;
+	HoughWidth = 180;
+	HoughHeight = 2 * sqrt(pow(Width, 2) + pow(Height, 2));// max distance 2* for negatif values
+	
+	int* HoughSpace = new int[HoughWidth*HoughHeight]; // Accumulator array (votes)
 
+	for (int row = 0; row < HoughHeight; row++)
+		for (int col = 0; col < HoughWidth; col++){
+			HoughSpace[row * HoughWidth + col] = 0;
+		}
+	for (int i = 0; i < Width; i++){// first and second row last and last-1 are 0
+		BinaryEdgeImage.data[0 * Width + i] = 0;
+		BinaryEdgeImage.data[1 * Width + i] = 0;
+		BinaryEdgeImage.data[Height -1 * Width + i] = 0;
+		BinaryEdgeImage.data[Height  -2* Width + i] = 0;
+	}
+	for (int i = 2; i < Height; i++){//right and right+1 left and lef+1 are 0
+		BinaryEdgeImage.data[i * Width + 0] = 0;
+		BinaryEdgeImage.data[i * Width + 1] = 0;
+		BinaryEdgeImage.data[i * Width -1 ] = 0;
+		BinaryEdgeImage.data[i * Width -2] = 0;
+	}
 
-
-
-
-
-
-	return Hough;
+	for (int row = 1; row < Height-1; row++)
+		for (int col = 1; col < Width-1; col++){
+			if (BinaryEdgeImage.data[row * Width + col] == 255) {
+ 				for (int theta = 0; theta < HoughWidth; theta++)
+				{
+					int distance = col * cos(theta *PI / 180) + row* sin(theta * PI / 180) + (HoughHeight / 2) ; // add HoughHeight / 2 --> include negatif values 
+					HoughSpace[distance * HoughWidth + theta]++;
+				}
+			}
+			
+		}
+	return HoughSpace;
 }
